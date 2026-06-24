@@ -37,18 +37,21 @@ class TrixStrategy(IStrategy):
     timeframe = "1h"
     can_short = False
 
-    # === Objectifs de gain (ROI) décroissants dans le temps (minutes) ===
-    minimal_roi = {
-        "0": 0.10,    # +10 % immédiatement
-        "60": 0.05,   # +5 % après 1 h
-        "120": 0.01,  # +1 % après 2 h
-    }
+    # === Objectifs de gain (ROI) — désactivé pour laisser courir les gagnants ===
+    minimal_roi = {"0": 0.99}  # ROI inatteignable -> sortie pilotée par trailing stop / signal
 
-    # === Stop-loss fixe de sécurité (le custom_stoploss ATR vient s'y ajouter) ===
+    # === Stop-loss fixe de sécurité ===
     stoploss = -0.10
 
-    # Active le stop-loss dynamique basé sur l'ATR
-    use_custom_stoploss = True
+    # Stop ATR désactivé en v3 : le trailing stop natif gère la sortie des gagnants.
+    # (use_custom_stoploss=True prendrait le pas sur trailing_stop et le rendrait inopérant.)
+    use_custom_stoploss = False
+
+    # === Trailing stop (v3) : verrouille les gains une fois l'offset atteint ===
+    trailing_stop = True
+    trailing_stop_positive = 0.02
+    trailing_stop_positive_offset = 0.04
+    trailing_only_offset_is_reached = True
 
     # === Paramètres de l'indicateur TRIX (fixés a priori) ===
     trix_length = 18    # période des EMA du triple lissage
@@ -143,22 +146,16 @@ class TrixStrategy(IStrategy):
     # 3. Signal de sortie                                               #
     # ------------------------------------------------------------------ #
     def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
-        """Conditions de sortie : croisement baissier OU perte de momentum."""
+        """Sortie unique (v3) : rupture de la tendance de fond (close < EMA200).
 
-        conditions = [
-            # TRIX croise EN-DESSOUS de sa ligne de signal
-            qtpylib.crossed_below(dataframe["trix"], dataframe["trix_signal"]),
-            # OU le TRIX repasse sous zéro (momentum négatif)
-            dataframe["trix"] < 0,
-            # OU le prix casse sous l'EMA200 (rupture de la tendance de fond)
-            dataframe["close"] < dataframe["ema200"],
-        ]
-
-        # Une seule des conditions suffit (OU logique)
+        Le croisement TRIX baissier a été retiré : en v2 il générait l'essentiel
+        des sorties perdantes. Les gagnants sont désormais sécurisés par le
+        trailing stop ; on ne ferme sur signal que si la tendance de fond casse.
+        """
         dataframe.loc[
-            reduce(lambda a, b: a | b, conditions),
+            dataframe["close"] < dataframe["ema200"],
             ["exit_long", "exit_tag"],
-        ] = (1, "trix_exit")
+        ] = (1, "ema200_break")
 
         return dataframe
 
