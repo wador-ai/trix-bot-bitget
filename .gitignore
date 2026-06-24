@@ -17,6 +17,9 @@ logs/*
 !logs/.gitkeep
 *.log
 
+# === Freqtrade : répertoire de travail & artefacts de backtest (non versionnés) ===
+user_data/
+
 # === Python ===
 __pycache__/
 *.py[cod]
