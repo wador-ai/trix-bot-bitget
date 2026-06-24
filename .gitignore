@@ -1,0 +1,48 @@
+# === Secrets & configuration locale (JAMAIS versionnés) ===
+config/config.json
+config/*.local.json
+.env
+.env.*
+*.key
+*.pem
+*secret*
+*credential*
+
+# === Données : tout ignorer sauf le marqueur de dossier ===
+data/*
+!data/.gitkeep
+
+# === Logs : tout ignorer sauf le marqueur de dossier ===
+logs/*
+!logs/.gitkeep
+*.log
+
+# === Python ===
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+build/
+dist/
+*.egg-info/
+
+# === Environnements virtuels ===
+.venv/
+venv/
+env/
+ENV/
+
+# === Outils & cache ===
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.ipynb_checkpoints/
+
+# === IDE / OS ===
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db

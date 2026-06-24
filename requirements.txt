@@ -1,0 +1,33 @@
+# === TRIX Bot Bitget — dépendances Python ===
+# Python 3.10+ recommandé.
+# Installer avec :  pip install -r requirements.txt
+#
+# NOTE FREQTRADE : Freqtrade n'est PAS installé via ce fichier.
+#   Il s'installe séparément (environnement dédié) via ./setup.sh
+#   ou en suivant https://www.freqtrade.io/en/stable/installation/
+#   Ce requirements.txt couvre la recherche/backtest hors-Freqtrade
+#   (vectorbt, optimisation, notebooks).
+
+# --- Connexion exchange (CCXT couvre Bitget) ---
+ccxt>=4.2.0
+
+# --- Données & calcul ---
+pandas>=2.1.0
+numpy>=1.26.0
+pandas-ta>=0.3.14b        # indicateurs techniques (TRIX, ATR, ...)
+
+# --- Backtest vectorisé & optimisation ---
+vectorbt>=0.26.0
+bayesian-optimization>=1.4.3
+
+# --- Visualisation ---
+matplotlib>=3.8.0
+plotly>=5.18.0
+
+# --- Notebooks & utilitaires ---
+jupyter>=1.0.0
+python-dotenv>=1.0.0      # chargement des secrets depuis .env (hors Git)
+loguru>=0.7.2             # logging
+
+# --- Tests ---
+pytest>=7.4.0
