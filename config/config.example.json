@@ -10,14 +10,12 @@
   "timeframe": "1h",
   "trading_mode": "spot",
   "margin_mode": "",
-
   "unfilledtimeout": {
     "entry": 10,
     "exit": 10,
     "exit_timeout_count": 0,
     "unit": "minutes"
   },
-
   "entry_pricing": {
     "price_side": "same",
     "use_order_book": true,
@@ -28,13 +26,11 @@
       "bids_to_ask_delta": 1
     }
   },
-
   "exit_pricing": {
     "price_side": "same",
     "use_order_book": true,
     "order_book_top": 1
   },
-
   "exchange": {
     "name": "bitget",
     "key": "YOUR_API_KEY_HERE",
@@ -45,19 +41,22 @@
     "pair_whitelist": [
       "BTC/USDT",
       "ETH/USDT",
-      "SOL/USDT"
+      "SOL/USDT",
+      "BNB/USDT",
+      "XRP/USDT",
+      "ADA/USDT",
+      "AVAX/USDT"
     ],
     "pair_blacklist": []
   },
-
   "pairlists": [
-    { "method": "StaticPairList" }
+    {
+      "method": "StaticPairList"
+    }
   ],
-
   "bot_name": "trix-bot-bitget",
   "initial_state": "running",
   "force_entry_enable": false,
-
   "internals": {
     "process_throttle_secs": 5
   }
