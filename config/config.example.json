@@ -59,5 +59,6 @@
   "force_entry_enable": false,
   "internals": {
     "process_throttle_secs": 5
-  }
+  },
+  "fee": 0.0008
 }

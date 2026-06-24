@@ -70,6 +70,21 @@ class TrixStrategy13(IStrategy):
                  max_leverage, side, **kwargs) -> float:
         return 1.0
 
+    def custom_entry_price(self, pair, trade, current_time,
+                           proposed_rate, entry_tag, side, **kwargs):
+        """Simule 0.05 % de slippage défavorable à l'entrée."""
+        if side == "long":
+            return proposed_rate * 1.0005
+        return proposed_rate * 0.9995
+
+    def custom_exit_price(self, pair, trade, current_time,
+                          proposed_rate, profit_margin,
+                          exit_tag, **kwargs):
+        """Simule 0.05 % de slippage défavorable à la sortie."""
+        if trade.is_short:
+            return proposed_rate * 1.0005
+        return proposed_rate * 0.9995
+
     def log(self, message: str) -> None:
         logger.info("[TrixStrategy13] %s", message)
 
