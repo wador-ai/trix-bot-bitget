@@ -55,11 +55,13 @@ class TrixStrategy(IStrategy):
     trix_signal = 9     # période de la ligne de signal
     rsi_length = 14     # période du RSI
     atr_length = 14     # période de l'ATR
-    atr_multiplier = 2.0  # multiplicateur du stop ATR
+    atr_multiplier = 3.0  # multiplicateur du stop ATR (élargi 2.0 -> 3.0 pour éviter le whipsaw)
+    ema_trend_length = 200  # filtre de tendance de fond
 
     # === Réglages d'exécution ===
     process_only_new_candles = True
-    startup_candle_count = 100  # marge pour stabiliser le triple lissage
+    # 210 bougies de chauffe : nécessaire pour stabiliser l'EMA200 du filtre de tendance
+    startup_candle_count = 210
 
     use_exit_signal = True
     exit_profit_only = False
@@ -103,6 +105,9 @@ class TrixStrategy(IStrategy):
             length=self.atr_length,
         )
 
+        # --- EMA 200 : filtre de tendance de fond (long uniquement en tendance haussière) ---
+        dataframe["ema200"] = ta.ema(dataframe["close"], length=self.ema_trend_length)
+
         return dataframe
 
     # ------------------------------------------------------------------ #
@@ -116,6 +121,10 @@ class TrixStrategy(IStrategy):
             qtpylib.crossed_above(dataframe["trix"], dataframe["trix_signal"]),
             # Momentum positif : TRIX au-dessus de zéro
             dataframe["trix"] > 0,
+            # Filtre de tendance : prix au-dessus de l'EMA200 (tendance de fond haussière)
+            dataframe["close"] > dataframe["ema200"],
+            # Momentum confirmé : histogramme TRIX croissant (accélération du momentum)
+            dataframe["trix_hist"] > dataframe["trix_hist"].shift(1),
             # Pas en zone de surachat
             dataframe["rsi"] < 70,
             # Volume réel présent sur la bougie
@@ -141,6 +150,8 @@ class TrixStrategy(IStrategy):
             qtpylib.crossed_below(dataframe["trix"], dataframe["trix_signal"]),
             # OU le TRIX repasse sous zéro (momentum négatif)
             dataframe["trix"] < 0,
+            # OU le prix casse sous l'EMA200 (rupture de la tendance de fond)
+            dataframe["close"] < dataframe["ema200"],
         ]
 
         # Une seule des conditions suffit (OU logique)
@@ -152,7 +163,7 @@ class TrixStrategy(IStrategy):
         return dataframe
 
     # ------------------------------------------------------------------ #
-    # 4. Stop-loss dynamique basé sur l'ATR (× 2)                        #
+    # 4. Stop-loss dynamique basé sur l'ATR (× atr_multiplier)            #
     # ------------------------------------------------------------------ #
     def custom_stoploss(
         self,
@@ -164,7 +175,7 @@ class TrixStrategy(IStrategy):
         **kwargs,
     ) -> float:
         """
-        Renvoie un stop-loss relatif (négatif) calé sur 2 × ATR.
+        Renvoie un stop-loss relatif (négatif) calé sur atr_multiplier × ATR.
 
         Le stop ATR ne se déclenche que s'il est PLUS serré que le stop fixe
         -10 %, ce qui protège le capital quand la volatilité est faible.
