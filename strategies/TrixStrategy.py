@@ -19,7 +19,7 @@ from datetime import datetime
 import pandas_ta as ta
 from pandas import DataFrame
 
-from freqtrade.strategy import IStrategy
+from freqtrade.strategy import IStrategy, IntParameter, DecimalParameter
 from freqtrade.persistence import Trade
 from freqtrade.vendor.qtpylib import indicators as qtpylib
 
@@ -47,18 +47,29 @@ class TrixStrategy(IStrategy):
     # (use_custom_stoploss=True prendrait le pas sur trailing_stop et le rendrait inopérant.)
     use_custom_stoploss = False
 
-    # === Trailing stop (v3) : verrouille les gains une fois l'offset atteint ===
+    # === Trailing stop (v6 hyperopt) : verrouille les gains une fois l'offset atteint ===
+    # Valeurs câblées dynamiquement depuis les DecimalParameter via bot_loop_start.
     trailing_stop = True
-    trailing_stop_positive = 0.02
-    trailing_stop_positive_offset = 0.04
+    trailing_stop_positive = 0.01
+    trailing_stop_positive_offset = 0.05
     trailing_only_offset_is_reached = True
 
-    # === Paramètres de l'indicateur TRIX (fixés a priori) ===
-    trix_length = 18    # période des EMA du triple lissage
-    trix_signal = 9     # période de la ligne de signal
+    # === Paramètres OPTIMISABLES (hyperopt) ===
+    #   buy  : géométrie de l'indicateur TRIX + seuil RSI
+    #   sell : paramètres du trailing stop (câblés dans bot_loop_start)
+    # Défauts = meilleurs paramètres hyperopt (epoch 97/200, SharpeHyperOptLoss, 200 epochs)
+    trix_length = IntParameter(10, 25, default=19, space="buy")
+    trix_signal = IntParameter(5, 15, default=6, space="buy")
+    rsi_threshold = IntParameter(55, 75, default=59, space="buy")
+    trailing_stop_positive_opt = DecimalParameter(
+        0.01, 0.05, default=0.01, decimals=2, space="sell")
+    trailing_stop_positive_offset_opt = DecimalParameter(
+        0.02, 0.08, default=0.05, decimals=2, space="sell")
+
+    # === Paramètres d'indicateurs fixés a priori (non optimisés) ===
     rsi_length = 14     # période du RSI
     atr_length = 14     # période de l'ATR
-    atr_multiplier = 3.0  # multiplicateur du stop ATR (élargi 2.0 -> 3.0 pour éviter le whipsaw)
+    atr_multiplier = 3.0  # multiplicateur du stop ATR (dormant : use_custom_stoploss=False)
     ema_trend_length = 200  # filtre de tendance de fond
 
     # === Réglages d'exécution ===
@@ -78,6 +89,16 @@ class TrixStrategy(IStrategy):
         """Log applicatif simple, préfixé par le nom de la stratégie."""
         logger.info("[TrixStrategy] %s", message)
 
+    def bot_loop_start(self, **kwargs) -> None:
+        """Câble les paramètres trailing optimisés sur les attributs lus par le moteur.
+
+        Freqtrade lit trailing_stop_positive(_offset) depuis les attributs de la
+        stratégie ; on les rafraîchit ici à partir des DecimalParameter (sell space)
+        pour que l'hyperopt de l'espace 'sell' agisse réellement sur le trailing stop.
+        """
+        self.trailing_stop_positive = self.trailing_stop_positive_opt.value
+        self.trailing_stop_positive_offset = self.trailing_stop_positive_offset_opt.value
+
     # ------------------------------------------------------------------ #
     # 1. Calcul des indicateurs                                          #
     # ------------------------------------------------------------------ #
@@ -88,8 +109,8 @@ class TrixStrategy(IStrategy):
         # ta.trix() renvoie un DataFrame : 1re colonne = TRIX, 2e = signal.
         trix_df = ta.trix(
             dataframe["close"],
-            length=self.trix_length,
-            signal=self.trix_signal,
+            length=self.trix_length.value,
+            signal=self.trix_signal.value,
         )
         dataframe["trix"] = trix_df.iloc[:, 0]
         dataframe["trix_signal"] = trix_df.iloc[:, 1]
@@ -128,8 +149,8 @@ class TrixStrategy(IStrategy):
             dataframe["close"] > dataframe["ema200"],
             # Momentum confirmé : histogramme TRIX croissant (accélération du momentum)
             dataframe["trix_hist"] > dataframe["trix_hist"].shift(1),
-            # Pas en zone de surachat
-            dataframe["rsi"] < 70,
+            # Pas en zone de surachat (seuil optimisable)
+            dataframe["rsi"] < self.rsi_threshold.value,
             # Volume réel présent sur la bougie
             dataframe["volume"] > 0,
         ]
